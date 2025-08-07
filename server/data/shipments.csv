@@ -1,4 +1,0 @@
-shipment_id,supplier_id,status,route_risk_level
-SH-123,1005,In Transit,High
-SH-456,1019,Delayed,Medium
-SH-789,1002,Delivered,Low

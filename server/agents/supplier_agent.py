@@ -1,9 +1,9 @@
 import pandas as pd
-from pathlib import Path    
+from sqlalchemy import text
+from ..utils.db import get_db_engine 
 
 # --- Configuration ---
-SUPPLIER_DATA_FILE = Path(__file__).parent.parent / 'data' / 'suppliers.csv'
-RISK_THRESHOLD = 7.0 # We'll flag any supplier with a risk score above this
+RISK_THRESHOLD = 7.0
 
 # --- Agent Logic ---
 def find_at_risk_suppliers() -> pd.DataFrame:
@@ -13,11 +13,12 @@ def find_at_risk_suppliers() -> pd.DataFrame:
     print("\n🏭 Supplier Agent: Analyzing supplier data...")
     
     try:
-        # 1. Read the supplier data from the CSV file
-        df = pd.read_csv(SUPPLIER_DATA_FILE)
-    except FileNotFoundError:
-        print(f"Error: The file '{SUPPLIER_DATA_FILE}' was not found.")
-        return pd.DataFrame() # Return an empty DataFrame
+        engine = get_db_engine()
+        query = text("SELECT * FROM suppliers;")
+        df = pd.read_sql(query, engine)
+    except Exception as e:
+        print(f"Error reading from database: {e}")
+        return pd.DataFrame()
 
     # 2. Define risk criteria
     # A supplier is at risk if its status is not 'OK' OR its risk score is too high.

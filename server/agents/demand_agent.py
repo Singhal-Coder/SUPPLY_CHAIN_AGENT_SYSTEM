@@ -3,36 +3,37 @@
 import pandas as pd
 from prophet import Prophet
 import logging
-from pathlib import Path
+from sqlalchemy import text
+from ..utils.db import get_db_engine
 
 # Suppress verbose logging from Prophet
 logging.getLogger('cmdstanpy').setLevel(logging.ERROR)
-
-PRODUCT_DATA_FILE = Path(__file__).parent.parent / 'data' / 'products.csv'
-SALES_HISTORY_FILE = Path(__file__).parent.parent / 'data' / 'sales_history.csv'
 
 def get_demand_forecast(at_risk_supplier_id: int) -> str:
     """
     Finds products linked to a supplier and forecasts future demand using Prophet.
     """
     try:
-        df_products = pd.read_csv(PRODUCT_DATA_FILE)
-        df_sales = pd.read_csv(SALES_HISTORY_FILE, parse_dates=['ds'])
-    except FileNotFoundError as e:
-        return f"Data file not found: {e}"
+        engine = get_db_engine()
+        # Read both products and sales history from the database
+        products_query = text("SELECT * FROM products WHERE supplier_id = :supplier_id")
+        sales_query = text("SELECT * FROM sales_history")
+        
+        df_products = pd.read_sql(products_query, engine, params={'supplier_id': at_risk_supplier_id})
+        df_sales = pd.read_sql(sales_query, engine, parse_dates=['ds'])
 
-    # 1. Find the product ID for the given supplier
-    product_info = df_products[df_products['supplier_id'] == at_risk_supplier_id]
-    if product_info.empty:
-        return "" # No products linked to this supplier
+    except Exception as e:
+        return f"Database error: {e}"
+
+    if df_products.empty:
+        return ""
 
     # For simplicity, we'll forecast the first product found for this supplier
-    product_id = product_info.iloc[0]['product_id']
-    product_name = product_info.iloc[0]['product_name']
+    product_id = df_products.iloc[0]['product_id']
+    product_name = df_products.iloc[0]['product_name']
     
-    # 2. Get the sales history for that specific product
     product_sales_history = df_sales[df_sales['product_id'] == product_id].copy()
-    if len(product_sales_history) < 10: # Need enough data to forecast
+    if len(product_sales_history) < 10:
         return f"Insufficient sales history for {product_name}."
 
     print(f"   📦 Demand Agent: Forecasting demand for '{product_name}'...")
@@ -46,13 +47,9 @@ def get_demand_forecast(at_risk_supplier_id: int) -> str:
     future = model.make_future_dataframe(periods=4, freq='W')
     forecast = model.predict(future)
     
-    # 5. Analyze the forecast to generate an insight
-    # Get the last actual sales number
     current_sales = product_sales_history['y'].iloc[-1]
-    # Get the final forecasted sales number
     predicted_sales = int(forecast['yhat'].iloc[-1])
     
-    # Calculate the percentage change
     percentage_change = round(((predicted_sales - current_sales) / current_sales) * 100)
     
     trend = "increase" if percentage_change >= 0 else "decrease"

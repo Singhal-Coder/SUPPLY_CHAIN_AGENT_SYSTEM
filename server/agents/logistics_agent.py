@@ -1,24 +1,20 @@
 # logistics_agent.py
 
 import pandas as pd
-from pathlib import Path
+from sqlalchemy import text
+from ..utils.db import get_db_engine
 
-SHIPMENT_DATA_FILE = Path(__file__).parent.parent / 'data' / 'shipments.csv'
 
 def get_logistics_info(at_risk_supplier_id: int) -> str:
     """
     Checks for active or delayed shipments from an at-risk supplier.
     """
     try:
-        df_shipments = pd.read_csv(SHIPMENT_DATA_FILE)
-    except FileNotFoundError:
-        return "Shipment data file not found."
-
-    # Find shipments from the supplier that are not yet delivered
-    active_shipments = df_shipments[
-        (df_shipments['supplier_id'] == at_risk_supplier_id) &
-        (df_shipments['status'] != 'Delivered')
-    ]
+        engine = get_db_engine()
+        query = text("SELECT * FROM shipments WHERE supplier_id = :supplier_id AND status != 'Delivered'")
+        active_shipments = pd.read_sql(query, engine, params={'supplier_id': at_risk_supplier_id})
+    except Exception as e:
+        return f"Database error: {e}"
 
     if not active_shipments.empty:
         # For simplicity, we'll just report on the first found shipment

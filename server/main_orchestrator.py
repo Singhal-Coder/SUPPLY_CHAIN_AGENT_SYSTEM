@@ -2,10 +2,10 @@ import re
 import pycountry
 
 # Import the functions from our agent files
-from agents.supplier_agent import find_at_risk_suppliers
-from agents.risk_agent import get_risk_summary
-from agents.demand_agent import get_demand_forecast
-from agents.logistics_agent import get_logistics_info
+from .agents.supplier_agent import find_at_risk_suppliers
+from .agents.risk_agent import get_risk_summary
+from .agents.demand_agent import get_demand_forecast
+from .agents.logistics_agent import get_logistics_info
 
 def get_country_code(country_name: str) -> str:
     """

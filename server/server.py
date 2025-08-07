@@ -1,7 +1,7 @@
 # server.py
 
 from fastapi import FastAPI, HTTPException
-from main_orchestrator import run_supply_chain_analysis
+from .main_orchestrator import run_supply_chain_analysis
 
 # Create a FastAPI application instance
 app = FastAPI()
