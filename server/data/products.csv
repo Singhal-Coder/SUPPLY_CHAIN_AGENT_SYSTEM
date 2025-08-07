@@ -1,0 +1,6 @@
+product_id,product_name,supplier_id,demand_level
+P101,Alpha Smartwatch,1005,High
+P102,Beta VR Headset,1019,High
+P103,Gamma Power Bank,1011,Medium
+P104,Delta E-Reader,1010,Low
+P105,Omega Drone,1002,High
