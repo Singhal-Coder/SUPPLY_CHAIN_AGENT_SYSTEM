@@ -1,8 +1,10 @@
 import os
 import json
+import redis
 from dotenv import load_dotenv
 from ibm_watson_machine_learning.foundation_models import Model
 from newsdataapi import NewsDataApiClient
+from sqlalchemy.exc import ProgrammingError
 
 # --- Configuration ---
 # Load credentials from the .env file
@@ -10,6 +12,14 @@ load_dotenv()
 WATSONX_API_KEY = os.getenv("WATSONX_API_KEY")
 WATSONX_PROJECT_ID = os.getenv("WATSONX_PROJECT_ID")
 NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY")
+REDIS_URL = os.getenv("REDIS_URL")
+
+try:
+    redis_client = redis.from_url(REDIS_URL)
+    print("✅ Successfully connected to Redis cache.")
+except Exception as e:
+    print(f"⚠️ Could not connect to Redis. Caching will be disabled. Error: {e}")
+    redis_client = None
 
 model_id = "ibm/granite-3-3-8b-instruct"
 parameters = {
@@ -25,6 +35,20 @@ def get_risk_summary(risk_topic: str, country_code: str, user_api_key: str = WAT
     """
     print(f"\n🌍 Global Risk Agent: Scanning Newsdata.io for '{risk_topic}' in '{country_code}'...")
 
+    cache_key = f"news_risk:{risk_topic}:{country_code}"
+    if redis_client:
+        try:
+            cached_result = redis_client.get(cache_key)
+            if cached_result:
+                print(f"   [CACHE HIT] Found result for key: {cache_key}")
+                return json.loads(cached_result) # Return saved result immediately
+        except Exception as e:
+            print(f"   [CACHE WARNING] Could not read from Redis. Bypassing cache. Error: {e}")
+
+    print(f"   [CACHE MISS] No result found for key: {cache_key}. Fetching from APIs...")
+
+
+
     try:
         api = NewsDataApiClient(apikey=NEWSDATA_API_KEY)
         
@@ -32,8 +56,6 @@ def get_risk_summary(risk_topic: str, country_code: str, user_api_key: str = WAT
         
         print(f"   [DEBUG] API Response Status: {response.get('status')}")
         print(f"   [DEBUG] Total Results Found: {response.get('totalResults')}")
-
-        articles = response.get('results', [])
 
         if response.get('status') != 'success':
             api_error_message = response.get('results', {}).get('message', 'Unknown API Error')
@@ -86,13 +108,25 @@ def get_risk_summary(risk_topic: str, country_code: str, user_api_key: str = WAT
                 response_content = generated_text[start_index + len(start_tag):end_index].strip()
                 # The content might be a JSON object directly or a code block containing JSON
                 json_string = response_content.strip('` \njson')
-                return json.loads(json_string)
+                result_dict = json.loads(json_string)
+
+                if redis_client:
+                    try:
+                        # Cache the result for 1 hour (3600 seconds)
+                        redis_client.set(cache_key, json.dumps(result_dict), ex=3600)
+                        print(f"   [CACHE SET] Saved result for key: {cache_key}")
+                    except Exception as e:
+                        print(f"   [CACHE WARNING] Could not write to Redis. Error: {e}")
+
+                return result_dict
             else:
                 return {"error": "AI did not return a valid <response> block."}
         except Exception as e:
              return {"error": f"Failed to parse JSON from AI response: {e}"}
 
     except Exception as e:
+        if isinstance(e, ProgrammingError) and "token_quota_reached" in str(e):
+             return {"error": "Watsonx.ai token quota has been reached."}
         return {"error": f"Error connecting to watsonx.ai: {e}"}
 
 
