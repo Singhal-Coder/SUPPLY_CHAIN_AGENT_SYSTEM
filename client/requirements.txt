@@ -1,3 +1,7 @@
 streamlit==1.48.0
 requests==2.32.4
 python-dotenv==1.1.1
+sqlalchemy==2.0.42
+psycopg2-binary==2.9.10
+pandas==2.1.4
+plotly==6.2.0

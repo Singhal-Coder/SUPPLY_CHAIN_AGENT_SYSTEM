@@ -43,7 +43,7 @@ def run_supply_chain_analysis(user_api_key: str, user_project_id: str):
     if at_risk_suppliers.empty:
         message = "✅ Analysis Complete: No high-risk suppliers found."
         print(message)
-        return [message]
+        return [{"message": message}]
 
     # 2. For each at-risk supplier, get a risk summary
     for index, supplier in at_risk_suppliers.iterrows():
@@ -107,17 +107,24 @@ def run_supply_chain_analysis(user_api_key: str, user_project_id: str):
 
         # Determine final priority level based on score
         if final_score > 15:
-            priority_level = "🔴 CRITICAL"
+            priority_level = "CRITICAL"
         elif final_score > 10:
-            priority_level = "🟠 HIGH"
+            priority_level = "HIGH"
         elif final_score > 5:
-            priority_level = "🟡 MEDIUM"
+            priority_level = "MEDIUM"
         else:
-            priority_level = "🟢 LOW"
+            priority_level = "LOW"
+
+        priority_color={
+            "CRITICAL":"🔴",
+            "HIGH":"🟠",
+            "MEDIUM":"🟡",
+            "LOW":"🟢"
+        }
         # --- REASONING ENGINE END ---
 
         # --- 3. BUILD THE FINAL ALERT ---
-        alert_string = f"{priority_level} ALERT FOR: {supplier_name.upper()}\n"
+        alert_string = f"{priority_color[priority_level]} {priority_level} ALERT FOR: {supplier_name.upper()}\n"
         alert_string += f"   - Supplier Status: {status} (Internal Risk Score: {supplier['risk_score']})\n"
         if demand_forecast_info:
             alert_string += f"   - {demand_forecast_info}\n"
@@ -127,13 +134,18 @@ def run_supply_chain_analysis(user_api_key: str, user_project_id: str):
         alert_string += f"   - Key Entities: {', '.join(key_entities)}\n"
         alert_string += f"   - News Summary: {news_summary_text}\n"
         
-        alerts.append(alert_string)
+        alerts.append({
+            "priority": priority_level,
+            "supplier_id": int(supplier_id),
+            "supplier_name": supplier_name,
+            "message": alert_string
+        })
         print(f"Generated '{priority_level}' alert for {supplier_name}")
 
     if not alerts:
         message = "✅ Analysis Complete: No high-risk suppliers found."
         print(message)
-        return [message]
+        return [{"message": message}]
         
     return alerts
 

@@ -31,7 +31,8 @@ def run_analysis_endpoint(api_key: str, project_id: str):
         raise HTTPException(status_code=400, detail="API key and Project ID are required.")
     
     alerts = run_supply_chain_analysis(user_api_key=api_key, user_project_id=project_id)
-    return {"alerts": alerts}
+    result = [alert['message'] for alert in alerts]
+    return {"alerts": result}
 
 @app.get("/run_scheduled_analysis")
 def run_scheduled_analysis():
@@ -42,7 +43,7 @@ def run_scheduled_analysis():
     
     alerts = run_supply_chain_analysis(WATSONX_API_KEY, WATSONX_PROJECT_ID)
     
-    if not alerts or "No high-risk suppliers found" in alerts[0]:
+    if not alerts or "No high-risk suppliers found" in alerts[0]['message']:
         print("No new alerts to save.")
         print("--- Scheduled Analysis Complete ---")
         return
@@ -54,25 +55,17 @@ def run_scheduled_analysis():
             with connection.begin():
                 print(f"Saving {len(alerts)} new alerts to the database...")
                 # 3. Insert each new alert into the 'alerts' table
-                for alert_text in alerts:
-                    # Extract priority for the database record
-                    priority = "UNKNOWN"
-                    if "CRITICAL" in alert_text: priority = "CRITICAL"
-                    elif "HIGH" in alert_text: priority = "HIGH"
-                    elif "MEDIUM" in alert_text: priority = "MEDIUM"
-                    elif "LOW" in alert_text: priority = "LOW"
-                    
-                    supplier_name_start = alert_text.find("FOR: ") + 5
-                    supplier_name_end = alert_text.find("\n", supplier_name_start)
-                    supplier_name = alert_text[supplier_name_start:supplier_name_end].strip()
-
+                for alert in alerts:
+                    supplier_id = alert['supplier_id']
+                    priority = alert['priority']
+                    alert_text = alert['message']
                     stmt = text("""
-                        INSERT INTO alerts (timestamp, supplier_name, priority, alert_text)
-                        VALUES (:ts, :name, :prio, :text)
+                        INSERT INTO alerts (timestamp, supplier_id, priority, alert_text)
+                        VALUES (:ts, :id, :prio, :text)
                     """)
                     connection.execute(stmt, {
                         "ts": datetime.now(timezone.utc),
-                        "name": supplier_name,
+                        "id": supplier_id,
                         "prio": priority,
                         "text": alert_text
                     })
