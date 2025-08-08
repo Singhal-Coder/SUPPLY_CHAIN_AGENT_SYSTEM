@@ -9,8 +9,6 @@ from sqlalchemy.exc import ProgrammingError
 # --- Configuration ---
 # Load credentials from the .env file
 load_dotenv()
-WATSONX_API_KEY = os.getenv("WATSONX_API_KEY")
-WATSONX_PROJECT_ID = os.getenv("WATSONX_PROJECT_ID")
 NEWSDATA_API_KEY = os.getenv("NEWSDATA_API_KEY")
 REDIS_URL = os.getenv("REDIS_URL")
 
@@ -29,7 +27,7 @@ parameters = {
     "repetition_penalty": 1,
 }
 
-def get_risk_summary(risk_topic: str, country_code: str, user_api_key: str = WATSONX_API_KEY, user_project_id: str = WATSONX_PROJECT_ID) -> dict:
+def get_risk_summary(risk_topic: str, country_code: str, user_api_key:str, user_project_id:str) -> dict:
     """
     Fetches news using Newsdata.io and returns an AI-generated summary.
     """
@@ -38,10 +36,11 @@ def get_risk_summary(risk_topic: str, country_code: str, user_api_key: str = WAT
     cache_key = f"news_risk:{risk_topic}:{country_code}"
     if redis_client:
         try:
-            cached_result = redis_client.get(cache_key)
-            if cached_result:
+            cached_result_bytes = redis_client.get(cache_key)
+            if cached_result_bytes:
                 print(f"   [CACHE HIT] Found result for key: {cache_key}")
-                return json.loads(cached_result) # Return saved result immediately
+                cached_result_str = cached_result_bytes.decode('utf-8')
+                return json.loads(cached_result_str)
         except Exception as e:
             print(f"   [CACHE WARNING] Could not read from Redis. Bypassing cache. Error: {e}")
 

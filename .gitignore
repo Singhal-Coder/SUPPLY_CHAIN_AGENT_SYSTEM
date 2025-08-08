@@ -1,4 +1,17 @@
+# Virtual environment
 venv/
+
+# Python bytecode
 __pycache__/
-scripts/
+*.py[cod]
+
+# Ignore scripts
+server/scripts/
+
+# Environment variable files
 .env
+
+# Optionally ignore compiled or log files
+# *.pyc
+# *.pyo
+# *.log

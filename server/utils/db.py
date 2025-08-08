@@ -5,13 +5,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL not found in environment variables.")
+
+engine = create_engine(DATABASE_URL)
+
 def get_db_engine():
     """
-    Creates and returns a SQLAlchemy engine using the DATABASE_URL.
+    Returns the shared SQLAlchemy engine instance.
     """
-    database_url = os.getenv("DATABASE_URL")
-    if not database_url:
-        raise ValueError("DATABASE_URL not found in environment variables.")
-    
-    engine = create_engine(database_url)
     return engine
