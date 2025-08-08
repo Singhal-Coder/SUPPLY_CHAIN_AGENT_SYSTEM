@@ -8,7 +8,7 @@ from sqlalchemy import text
 from datetime import datetime, timezone
 
 from .main_orchestrator import run_supply_chain_analysis
-from .utils import get_db_engine
+from .utils.db import get_db_engine
 
 load_dotenv()
 
